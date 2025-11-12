@@ -2,54 +2,17 @@ pipeline {
   agent any
   environment {
     VENV = 'venv'
-    PY = ''   // Will be discovered at runtime
+    PY   = 'C:\\Users\\nabil\\AppData\\Local\\Programs\\Python\\Python313\\python.exe'  // <- your python.exe
   }
 
   stages {
-
-    stage('Detect Python') {
-      steps {
-        // Find a usable python for this Jenkins service account
-        powershell '''
-          $candidates = @(
-            "py.exe",
-            "python.exe",
-            "C:\\Program Files\\Python313\\python.exe",
-            "C:\\Program Files\\Python312\\python.exe",
-            "C:\\Python313\\python.exe",
-            "C:\\Python312\\python.exe"
-          )
-          $found = $null
-          foreach ($c in $candidates) {
-            try {
-              $cmd = Get-Command $c -ErrorAction Stop
-              if ($cmd -and $cmd.Source) { $found = $cmd.Source; break }
-            } catch {}
-            if (Test-Path $c) { $found = $c; break }
-          }
-          if (-not $found) {
-            Write-Error "Python not found for Jenkins service account. Install Python for ALL USERS or add to PATH."
-            exit 1
-          }
-          "FOUND=$found" | Out-File -FilePath python_path.txt -Encoding ascii
-        '''
-        script {
-          def line = readFile('python_path.txt').trim()
-          env.PY = line.replace('FOUND=', '')
-          echo "Using Python at: ${env.PY}"
-        }
-      }
-    }
-
     stage('Setup') {
       steps {
         script {
-          // Create venv if needed
           if (!fileExists("${env.WORKSPACE}\\${VENV}\\Scripts\\activate.bat")) {
             bat "\"${env.PY}\" -m venv ${VENV}"
           }
         }
-        // Upgrade pip + install deps using explicit venv python
         bat """
           ${VENV}\\Scripts\\python.exe -m pip install --upgrade pip
           ${VENV}\\Scripts\\pip.exe install -r requirements.txt
@@ -57,23 +20,9 @@ pipeline {
       }
     }
 
-    stage('Lint') {
-      steps {
-        bat """
-          ${VENV}\\Scripts\\python.exe -m flake8 app.py
-        """
-      }
-    }
-
-    stage('Test') {
-      steps {
-        bat """
-          ${VENV}\\Scripts\\python.exe -m pytest --maxfail=1 --disable-warnings -q
-        """
-      }
-    }
-
-    stage('Coverage') {
+    stage('Lint')         { steps { bat "${VENV}\\Scripts\\python.exe -m flake8 app.py" } }
+    stage('Test')         { steps { bat "${VENV}\\Scripts\\python.exe -m pytest --maxfail=1 --disable-warnings -q" } }
+    stage('Coverage')     {
       steps {
         bat """
           ${VENV}\\Scripts\\python.exe -m coverage run -m pytest
@@ -82,25 +31,9 @@ pipeline {
         """
       }
     }
-
-    stage('Security Scan') {
-      steps {
-        bat """
-          ${VENV}\\Scripts\\python.exe -m bandit -r .
-        """
-      }
-    }
-
-    stage('Deploy') {
-      steps {
-        bat """
-          ${VENV}\\Scripts\\python.exe app.py
-        """
-      }
-    }
+    stage('Security Scan') { steps { bat "${VENV}\\Scripts\\python.exe -m bandit -r ." } }
+    stage('Deploy')        { steps { bat "${VENV}\\Scripts\\python.exe app.py" } }
   }
 
-  post {
-    always { cleanWs() }
-  }
+  post { always { cleanWs() } }
 }
