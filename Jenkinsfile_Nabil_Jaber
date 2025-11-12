@@ -2,10 +2,11 @@ pipeline {
   agent any
   environment {
     VENV = 'venv'
-    PY   = 'C:\\Users\\nabil\\AppData\\Local\\Programs\\Python\\Python313\\python.exe'  // <- your python.exe
+    PY   = 'C:\\Program Files\\Python312\\python.exe'   // <— system-wide install
   }
 
   stages {
+
     stage('Setup') {
       steps {
         script {
@@ -22,7 +23,8 @@ pipeline {
 
     stage('Lint')         { steps { bat "${VENV}\\Scripts\\python.exe -m flake8 app.py" } }
     stage('Test')         { steps { bat "${VENV}\\Scripts\\python.exe -m pytest --maxfail=1 --disable-warnings -q" } }
-    stage('Coverage')     {
+
+    stage('Coverage') {
       steps {
         bat """
           ${VENV}\\Scripts\\python.exe -m coverage run -m pytest
@@ -31,7 +33,9 @@ pipeline {
         """
       }
     }
+
     stage('Security Scan') { steps { bat "${VENV}\\Scripts\\python.exe -m bandit -r ." } }
+
     stage('Deploy')        { steps { bat "${VENV}\\Scripts\\python.exe app.py" } }
   }
 
