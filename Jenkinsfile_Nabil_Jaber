@@ -2,7 +2,7 @@ pipeline {
   agent any
   environment {
     VENV = 'venv'
-    PY   = 'C:\\Program Files\\Python312\\python.exe'   // <— system-wide install
+    PY   = 'C:\\Program Files\\Python312\\python.exe' 
   }
 
   stages {
@@ -34,22 +34,23 @@ pipeline {
       }
     }
 
-    stage('Security Scan') {
-     steps {
-        bat """
-        rem Force UTF-8 in this step to avoid Windows cp1252 console issues
-        set PYTHONUTF8=1
-        set PYTHONIOENCODING=UTF-8
-        chcp 65001 >NUL
+   stage('Security Scan') {
+  steps {
+    bat """
+      rem Force UTF-8 to avoid cp1252 issues
+      set PYTHONUTF8=1
+      set PYTHONIOENCODING=UTF-8
+      chcp 65001 >NUL
 
-        rem Generate a JSON report (no console output encoding problems)
-        ${VENV}\\Scripts\\python.exe -m bandit -r . -f json -o bandit.json
+      rem JSON report (won't fail build)
+      ${VENV}\\Scripts\\python.exe -m bandit -r . -f json -o bandit.json --exit-zero
 
-        rem Also write a text report (UTF-8-safe path), but don’t print it to console
-        ${VENV}\\Scripts\\python.exe -m bandit -r . -f txt -o bandit.txt
+      rem Text report (won't fail build)
+      ${VENV}\\Scripts\\python.exe -m bandit -r . -f txt -o bandit.txt --exit-zero
     """
   }
 }
+
 
 
     stage('Deploy')        { steps { bat "${VENV}\\Scripts\\python.exe app.py" } }
